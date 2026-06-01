@@ -20,6 +20,51 @@ uv sync                 # install / sync dependencies from uv.lock
 source .venv/bin/activate
 ```
 
+## How MATE-Hard is constructed
+
+MATE-Hard is **not** a separate environment or a new YAML — it is a runtime
+stack of three Gym wrappers applied on top of any plain MATE scenario. The
+three wrappers live in `mate_marl/wrappers/`:
+
+- `mate_marl.wrappers.HeterogeneousCameras` — assigns each camera a type (wide / tele / fisheye) with distinct FoV, range, slew speed, and noise.
+- `mate_marl.wrappers.EnergyConstraint` — adds a per-camera battery that drains with slew/zoom; cameras recharge inside warehouse circles.
+- `mate_marl.wrappers.DynamicFog` — spawns drifting Gaussian fog patches that occlude target observations.
+
+The factory `mate_marl.scripts.make_env.make_marl_env` composes the full stack
+on top of MATE's `MultiCamera` adapter:
+
+```python
+from mate_marl.scripts.make_env import make_marl_env
+
+# Full MATE-Hard stack on the headline 4v8 scenario:
+env = make_marl_env(
+    mate_config="MATE-4v8-9.yaml",
+    enable_heterogeneous=True,
+    enable_energy=True,
+    enable_fog=True,
+)
+
+# Plain MATE (all three wrappers disabled — exactly reproduces vanilla MATE):
+env = make_marl_env(
+    mate_config="MATE-4v8-9.yaml",
+    enable_heterogeneous=False,
+    enable_energy=False,
+    enable_fog=False,
+)
+```
+
+The full wrapper stack assembled by `make_marl_env` (outermost first) is:
+
+```
+FlattenAgentsForPPO
+  MateMARLDictObs                       # pack flat obs into typed entity-token dict
+    DynamicFog                          # MATE-Hard wrapper (3)
+      EnergyConstraint                  # MATE-Hard wrapper (2)
+        HeterogeneousCameras            # MATE-Hard wrapper (1)
+          mate.MultiCamera              # MATE single-team adapter
+            MultiAgentTracking-v0       # MATE base env
+```
+
 ## Quick start
 
 Run a sample MATE-Hard episode with pygame rendering:
@@ -84,11 +129,12 @@ wrapper.py        # Dict-observation wrapper demo
 
 ### Key modules
 
-- `mate.wrappers.HeterogeneousCameras`, `mate.wrappers.EnergyConstraint`, `mate.wrappers.DynamicFog` — the three MATE-Hard wrappers.
-- `mate_marl.nets.set_transformer_moe` — Set-Transformer + Type-Conditioned MoE encoder.
-- `mate_marl.trainers.tcqmix` — TC-QMIX trainer with hypernet-based type-conditioned mixing.
+- `mate_marl.wrappers.HeterogeneousCameras`, `mate_marl.wrappers.EnergyConstraint`, `mate_marl.wrappers.DynamicFog` — the three MATE-Hard wrappers (see *How MATE-Hard is constructed* above).
+- `mate_marl.scripts.make_env.make_marl_env` — factory that composes the full MATE-Hard wrapper stack; per-wrapper toggles enable ablations.
+- `mate_marl.nets` — Set-Transformer + Type-Conditioned MoE encoder.
+- `mate_marl.trainers` — six trainers (Double-DQN, MAPPO, VDN, vanilla QMIX, TC-QMIX, TC-QMIX types-only); TC-QMIX uses a hypernet-based type-conditioned mixer.
 - `mate_marl.scripts.eval_matrix` — unified evaluation harness used to build the transfer matrix.
-- `mate_marl.analysis.stats` — paired bootstrap CI, Welch's *t*-test, Cohen's *d*.
+- `mate_marl.analysis` — statistical-significance utilities (paired bootstrap CI, Welch's *t*-test, Cohen's *d*).
 
 ## Scenarios
 
