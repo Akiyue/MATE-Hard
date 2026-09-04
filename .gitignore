@@ -31,11 +31,23 @@ checkpoints/
 logs/
 runs/
 
-# Paper sources & drafts (kept private, regenerated locally)
-paper/
+# Paper sources & drafts (kept private, regenerated locally).
+# Exception: the scripts that regenerate the figures and the supplementary
+# hyperparameter sweep log are released, because the manuscript cites them.
+paper/*
+!paper/supplementary/
+!paper/make_figures.py
+!paper/make_figures_sprint4.py
+!paper/make_figure_mate_hard_illustration.py
+!paper/make_figure_training_curves.py
 PAPER*.md
 PAPER*.pdf
 build_pdf*.py
+
+# Peer-review correspondence: the journal's decision letter states that the
+# reviewer comments are confidential. These must never be published.
+revisions.txt
+RESPONSE_TO_REVIEWERS.*
 
 # Internal reports & scratch notes
 SPRINT_*.md
